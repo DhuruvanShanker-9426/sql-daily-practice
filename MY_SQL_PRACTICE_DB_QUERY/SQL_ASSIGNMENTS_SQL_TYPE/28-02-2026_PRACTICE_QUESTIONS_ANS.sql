@@ -1,0 +1,183 @@
+-- 28-02-2026 PRACTICE QUESTIONS
+USE classicmodels;
+
+-- 1. List each *customer name* with their *sales rep’s full name*.
+SELECT * FROM customers;
+SELECT * FROM employees;
+SELECT customerName, CONCAT(firstName," ",lastName) AS sales_rep_name 
+FROM customers c
+JOIN employees e
+ON c.salesRepEmployeeNumber=e.employeeNumber
+ORDER BY customerName;
+
+-- 2. Show *orderNumber, **orderDate, and **customerName* for all orders.
+SELECT * FROM customers;
+SELECT * FROM orders;
+SELECT orderNumber,orderDate,c.customerName
+FROM customers c
+JOIN orders o
+ON c.customerNumber=o.customerNumber;
+
+-- 3. Display *productCode, **productName, **productLine, and **textDescription*.
+SELECT * FROM products;
+SELECT * FROM productlines;
+
+SELECT p.productCode,p.productName,pl.productLine,pl.textDescription
+FROM products p
+JOIN productlines pl
+ON p.productLine=pl.productLine;
+
+-- 4. For each *orderNumber, show the **count of distinct products* in that order.
+SELECT * FROM products;
+SELECT * FROM orderdetails;
+
+SELECT orderNumber,COUNT(DISTINCT od.productCode) AS No_of_products
+FROM products p
+JOIN orderdetails od
+ON p.productCode=od.productCode
+GROUP BY orderNumber
+ORDER BY No_of_products DESC;
+
+-- 5. For each *customer, show the **office city* of their assigned *sales rep*.
+SELECT * FROM customers;
+SELECT * FROM employees;
+SELECT * FROM offices;
+
+SELECT customerName,o.city
+FROM customers c
+JOIN employees e ON c.salesRepEmployeeNumber=e.employeeNumber
+JOIN offices o ON e.officeCode=o.officeCode
+ORDER BY customerName;
+
+-- 6. Find customers who have *never placed an order*.
+SELECT * FROM customers;
+SELECT * FROM orders;
+
+SELECT c.customerNumber,customerName
+FROM customers c
+LEFT JOIN orders o
+ON c.customerNumber=o.customerNumber
+WHERE orderNumber IS NULL;
+
+-- 7. Identify *orders that have no orderdetails* rows (if any).
+SELECT * FROM orders;
+SELECT * FROM orderdetails;
+
+SELECT o.orderNumber
+FROM orders o
+LEFT JOIN orderdetails od
+ON o.orderNumber=od.orderNumber
+WHERE od.orderNumber IS NULL;
+
+-- 8. For every *product, show **total quantity ordered; include products **never ordered* with *0*.
+SELECT * FROM products;
+SELECT * FROM orderdetails;
+
+SELECT p.productCode,IFNULL(SUM(od.quantityOrdered),0) AS total_quantity_ordered
+FROM products p
+LEFT JOIN orderdetails od
+ON p.productCode=od.productCode
+GROUP BY p.productCode
+ORDER BY total_quantity_ordered;
+
+-- 9. Show each *employee’s full name* and their *manager’s full name* (if any).
+SELECT * FROM employees;
+
+SELECT CONCAT(e.firstName," ",e.lastName) AS emp_full_name,CONCAT(m.firstName," ",m.lastName) AS manager_full_name
+FROM employees e
+LEFT JOIN employees m
+ON e.reportsTo=m.employeeNumber; 
+
+-- 10. For each *customer, display their **most recent payment date* (if any).
+SELECT * FROM customers;
+SELECT * FROM payments;
+
+SELECT c.customerNumber,paymentDate
+FROM customers c
+LEFT JOIN payments pay
+ON c.customerNumber=pay.customerNumber
+ORDER BY pay.paymentDate;
+
+-- 11. List *orderNumber, **orderDate, **customerName, and the **office city* of the customer’s *sales rep*.
+SELECT ord.orderNumber,ord.orderDate,c.customerName,o.city 
+FROM orders ord
+JOIN customers c ON ord.customerNumber=c.customerNumber
+JOIN employees e ON c.salesRepEmployeeNumber=e.employeeNumber
+JOIN offices o ON e.officeCode=o.officeCode
+ORDER BY customerName;
+
+-- 12. For each *product line, show **total revenue* (quantityOrdered * priceEach).
+SELECT p.productLine,SUM((od.quantityOrdered*od.priceEach)) AS total_revenue
+FROM products p
+JOIN orderdetails od
+ON p.productCode=od.productCode
+GROUP BY p.productLine;
+
+-- 13. Show the *top 5 customers* by *total payment amount*.
+SELECT customerNumber,SUM(amount) AS total_payment 
+FROM payments
+GROUP BY customerNumber
+ORDER BY total_payment DESC
+LIMIT 5;
+
+-- 14. For each order, compute *order revenue* (sum of quantityOrdered * priceEach) with *customerName* and *orderDate*.
+SELECT c.customerName,ord.orderDate,SUM(quantityOrdered * priceEach) AS order_revenue
+FROM customers c
+JOIN orders ord ON c.customerNumber=ord.customerNumber
+JOIN orderdetails od
+ON ord.orderNumber=od.orderNumber
+GROUP BY ord.orderNumber;
+
+-- 15. List employees who *do not manage anyone*.
+SELECT employeeNumber,CONCAT(firstName," ",lastName) AS emp_fullName
+FROM employees
+WHERE employeeNumber NOT IN (
+	SELECT DISTINCT reportsTo
+	FROM employees
+	WHERE reportsTo IS NOT NULL
+    )
+ORDER BY emp_fullName;
+
+-- 16. List products that have *never been ordered* but *belong to a product line* that *has at least one* other product ordered.
+SELECT p.productCode,p.productLine 
+FROM products p
+LEFT JOIN orderdetails od
+ON p.productCode=od.productCode
+WHERE od.quantityOrdered IS NULL 
+AND p.productLine IN (
+	SELECT DISTINCT p2.productLine
+	FROM products p2
+	JOIN orderdetails od2
+	ON p2.productCode = od2.productCode
+);
+
+-- 17. For each office, show *number of employees* and *number of distinct customers* handled by those employees.
+SELECT o.city,COUNT(e.employeeNumber) AS No_of_employees,COUNT(DISTINCT c.customerNumber) AS No_of_customers
+FROM offices o
+JOIN employees e ON o.officeCode=e.officeCode
+JOIN customers c ON e.employeeNumber=c.salesRepEmployeeNumber
+GROUP BY o.officeCode;
+
+-- 18. For each *month (YYYY-MM), show **total orders placed* and *total payments received*, including months that appear in only one side.
+SELECT MONTHNAME(orderDate) AS month_name,COUNT(*) AS total_order_placed,COUNT(quantityOrdered*priceEach) AS total_payments
+FROM orders ord
+JOIN orderdetails od
+ON ord.orderNumber=od.orderNumber
+GROUP BY orderDate; -- this one is wrong , i have doubt in this.
+
+-- 19. For each *customer, show **total ordered value* (from orders/orderdetails) vs *total paid* (from payments).
+SELECT c.customerNumber,c.customerName,SUM(quantityOrdered*priceEach) AS total_order_value,SUM(amount) AS total_paid
+FROM orderdetails od
+JOIN orders ord ON od.orderNumber=ord.orderNumber
+JOIN customers c ON c.customerNumber=ord.customerNumber
+JOIN payments pay ON c.customerNumber=pay.customerNumber
+GROUP BY c.customerNumber
+ORDER BY c.customerName;
+
+-- 20. Within each *product line, find the **product with the highest revenue* (based on all orderdetails).
+SELECT p.productCode,productLine,SUM(quantityOrdered*priceEach) AS total_revenue
+FROM products p
+JOIN orderdetails od
+ON p.productCode=od.productCode
+GROUP BY p.productCode
+ORDER BY p.productCode DESC;
